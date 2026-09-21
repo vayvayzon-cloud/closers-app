@@ -41,7 +41,7 @@ export default function CloserDetailPage() {
       </Link>
       <PageHeader
         title={closer.name}
-        subtitle={`${closer.email}${closer.phone ? ` · ${closer.phone}` : ""}`}
+        subtitle={`${closer.email}${closer.phone ? ` · ${closer.phone}` : ""}${closer.dni ? ` · DNI ${closer.dni}` : ""}${closer.address ? ` · ${closer.address}` : ""}`}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">

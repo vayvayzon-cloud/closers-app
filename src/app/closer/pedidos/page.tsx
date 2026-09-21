@@ -21,9 +21,11 @@ type Order = {
   direccion: string;
   localidad: string;
   codigoPostal: string;
+  producto?: string;
   montoPedido: number;
   gananciaCloser: number;
   estado: string;
+  adminQueueStatus?: string;
   createdAt: string;
 };
 
@@ -33,6 +35,7 @@ const emptyForm = {
   direccion: "",
   localidad: "",
   codigoPostal: "",
+  producto: "",
   montoPedido: "",
   gananciaCloser: "",
   estado: "pendiente",
@@ -44,6 +47,7 @@ export default function CloserPedidosPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [defaultGanancia, setDefaultGanancia] = useState("");
+  const [defaultProducto, setDefaultProducto] = useState("");
 
   async function load() {
     const [o, d] = await Promise.all([
@@ -54,6 +58,9 @@ export default function CloserPedidosPage() {
     if (d.assignment?.gananciaFija) {
       setDefaultGanancia(String(d.assignment.gananciaFija));
     }
+    if (d.product?.name) {
+      setDefaultProducto(d.product.name);
+    }
   }
 
   useEffect(() => {
@@ -62,7 +69,11 @@ export default function CloserPedidosPage() {
 
   function openCreate() {
     setEditId(null);
-    setForm({ ...emptyForm, gananciaCloser: defaultGanancia });
+    setForm({
+      ...emptyForm,
+      gananciaCloser: defaultGanancia,
+      producto: defaultProducto,
+    });
     setOpen(true);
   }
 
@@ -74,6 +85,7 @@ export default function CloserPedidosPage() {
       direccion: o.direccion,
       localidad: o.localidad,
       codigoPostal: o.codigoPostal,
+      producto: o.producto || "",
       montoPedido: String(o.montoPedido),
       gananciaCloser: String(o.gananciaCloser),
       estado: o.estado,
@@ -127,10 +139,11 @@ export default function CloserPedidosPage() {
               <tr className="border-b border-surface-border text-left text-xs uppercase text-zinc-500">
                 <th className="px-4 py-3 font-medium">Fecha</th>
                 <th className="px-4 py-3 font-medium">Cliente</th>
+                <th className="px-4 py-3 font-medium">Producto</th>
                 <th className="px-4 py-3 font-medium">Localidad</th>
                 <th className="px-4 py-3 font-medium">Monto</th>
-                <th className="px-4 py-3 font-medium">Ganancia</th>
                 <th className="px-4 py-3 font-medium">Estado</th>
+                <th className="px-4 py-3 font-medium">Cola admin</th>
                 <th className="px-4 py-3 font-medium"></th>
               </tr>
             </thead>
@@ -146,15 +159,20 @@ export default function CloserPedidosPage() {
                     </p>
                     <p className="text-[11px] text-zinc-500">{o.direccion}</p>
                   </td>
+                  <td className="px-4 py-3 text-zinc-300">{o.producto || "—"}</td>
                   <td className="px-4 py-3 text-zinc-400">
                     {o.localidad} ({o.codigoPostal})
                   </td>
                   <td className="px-4 py-3 font-medium">{formatMoney(o.montoPedido)}</td>
-                  <td className="px-4 py-3 text-orange-400">
-                    {formatMoney(o.gananciaCloser)}
-                  </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={o.estado} />
+                  </td>
+                  <td className="px-4 py-3 text-xs text-zinc-400">
+                    {o.adminQueueStatus === "pendiente_carga"
+                      ? "Pendiente carga"
+                      : o.adminQueueStatus === "descartado"
+                        ? "Descartado"
+                        : "Cargado"}
                   </td>
                   <td className="px-4 py-3">
                     <Button variant="ghost" size="sm" onClick={() => openEdit(o)}>
@@ -176,12 +194,12 @@ export default function CloserPedidosPage() {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Nombre"
+              label="Nombre cliente"
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             />
             <Input
-              label="Apellido"
+              label="Apellido cliente"
               value={form.apellido}
               onChange={(e) => setForm({ ...form, apellido: e.target.value })}
             />
@@ -203,6 +221,12 @@ export default function CloserPedidosPage() {
               onChange={(e) => setForm({ ...form, codigoPostal: e.target.value })}
             />
           </div>
+          <Input
+            label="Producto"
+            value={form.producto}
+            onChange={(e) => setForm({ ...form, producto: e.target.value })}
+            placeholder="Nombre del producto vendido"
+          />
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Monto pedido"

@@ -23,6 +23,7 @@ type Order = {
   direccion: string;
   localidad: string;
   codigoPostal: string;
+  producto?: string;
   montoPedido: number;
   gananciaCloser: number;
   estado: string;
@@ -38,6 +39,7 @@ const emptyForm = {
   direccion: "",
   localidad: "",
   codigoPostal: "",
+  producto: "",
   montoPedido: "",
   gananciaCloser: "",
   estado: "pendiente",
@@ -81,6 +83,7 @@ export default function PedidosAdminPage() {
       direccion: o.direccion,
       localidad: o.localidad,
       codigoPostal: o.codigoPostal,
+      producto: o.producto || "",
       montoPedido: String(o.montoPedido),
       gananciaCloser: String(o.gananciaCloser),
       estado: o.estado,
@@ -156,6 +159,7 @@ export default function PedidosAdminPage() {
                 <th className="px-4 py-3 font-medium">Fecha</th>
                 <th className="px-4 py-3 font-medium">Cliente</th>
                 <th className="px-4 py-3 font-medium">Localidad</th>
+                <th className="px-4 py-3 font-medium">Producto</th>
                 <th className="px-4 py-3 font-medium">Closer</th>
                 <th className="px-4 py-3 font-medium">Monto</th>
                 <th className="px-4 py-3 font-medium">Ganancia</th>
@@ -178,6 +182,7 @@ export default function PedidosAdminPage() {
                   <td className="px-4 py-3 text-zinc-400">
                     {o.localidad} ({o.codigoPostal})
                   </td>
+                  <td className="px-4 py-3 text-zinc-300">{o.producto || "—"}</td>
                   <td className="px-4 py-3 text-zinc-300">{o.closerName}</td>
                   <td className="px-4 py-3 font-medium">{formatMoney(o.montoPedido)}</td>
                   <td className="px-4 py-3 text-orange-400">
@@ -250,6 +255,12 @@ export default function PedidosAdminPage() {
               onChange={(e) => setForm({ ...form, codigoPostal: e.target.value })}
             />
           </div>
+          <Input
+            label="Producto"
+            value={form.producto}
+            onChange={(e) => setForm({ ...form, producto: e.target.value })}
+            placeholder="Nombre del producto"
+          />
           <div className="grid grid-cols-2 gap-3">
             <Input
               label="Monto pedido"

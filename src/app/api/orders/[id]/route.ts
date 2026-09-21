@@ -28,9 +28,13 @@ export async function PATCH(
       "direccion",
       "localidad",
       "codigoPostal",
+      "producto",
     ] as const;
     for (const f of fields) {
       if (body[f] !== undefined) d.orders[idx][f] = String(body[f]).trim();
+    }
+    if (body.productId !== undefined) {
+      d.orders[idx].productId = body.productId ? String(body.productId) : undefined;
     }
     if (body.montoPedido !== undefined) d.orders[idx].montoPedido = Number(body.montoPedido) || 0;
     if (body.gananciaCloser !== undefined)

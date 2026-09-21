@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Target } from "lucide-react";
 import { Button, Input, Card } from "@/components/ui";
@@ -94,6 +95,13 @@ export default function LoginPage() {
               {loading ? "Ingresando…" : "Ingresar"}
             </Button>
           </form>
+
+          <p className="mt-5 text-center text-sm text-zinc-400">
+            ¿Sos closer nuevo?{" "}
+            <Link href="/registro" className="text-orange-400 hover:text-orange-300 font-medium">
+              Registrate acá
+            </Link>
+          </p>
 
           <div className="mt-6 border-t border-surface-border pt-4">
             <p className="mb-2 text-xs uppercase tracking-wider text-zinc-500">

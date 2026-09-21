@@ -3,6 +3,7 @@ import path from "path";
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import type { Database } from "./types";
 import { seedDatabase } from "./seed-data";
+import { normalizeDatabase } from "./normalize";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const DB_PATH = path.join(DATA_DIR, "db.json");
@@ -45,7 +46,7 @@ function readDbFile(): Database {
     writeDbFile(seeded);
     return seeded;
   }
-  return db;
+  return normalizeDatabase(db);
 }
 
 function writeDbFile(db: Database): void {
@@ -94,7 +95,7 @@ async function readDbNeon(): Promise<Database> {
     await writeDbNeon(seeded);
     return seeded;
   }
-  return db;
+  return normalizeDatabase(db);
 }
 
 async function writeDbNeon(db: Database): Promise<void> {

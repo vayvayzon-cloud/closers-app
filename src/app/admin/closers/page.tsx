@@ -18,8 +18,12 @@ import { formatMoney } from "@/lib/utils";
 type Closer = {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   phone?: string;
+  address?: string;
+  dni?: string;
   active: boolean;
   product?: { name: string } | null;
   assignment?: { gananciaFija: number } | null;
@@ -34,9 +38,12 @@ export default function ClosersPage() {
   const [assignOpen, setAssignOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
+    address: "",
+    dni: "",
     password: "closer123",
     active: true,
   });
@@ -61,16 +68,28 @@ export default function ClosersPage() {
 
   function openCreate() {
     setEditId(null);
-    setForm({ name: "", email: "", phone: "", password: "closer123", active: true });
+    setForm({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      address: "",
+      dni: "",
+      password: "closer123",
+      active: true,
+    });
     setOpen(true);
   }
 
   function openEdit(c: Closer) {
     setEditId(c.id);
     setForm({
-      name: c.name,
+      firstName: c.firstName || c.name.split(" ")[0] || "",
+      lastName: c.lastName || c.name.split(" ").slice(1).join(" ") || "",
       email: c.email,
       phone: c.phone || "",
+      address: c.address || "",
+      dni: c.dni || "",
       password: "",
       active: c.active,
     });
@@ -78,17 +97,21 @@ export default function ClosersPage() {
   }
 
   async function save() {
+    const payload = {
+      ...form,
+      name: `${form.firstName} ${form.lastName}`.trim(),
+    };
     if (editId) {
       await fetch(`/api/closers/${editId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
     } else {
       await fetch("/api/closers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
     }
     setOpen(false);
@@ -148,6 +171,12 @@ export default function ClosersPage() {
                   </Link>
                   <p className="text-sm text-zinc-400">{c.email}</p>
                   {c.phone && <p className="text-xs text-zinc-500">{c.phone}</p>}
+                  {c.dni && (
+                    <p className="text-xs text-zinc-500 mt-1">DNI: {c.dni}</p>
+                  )}
+                  {c.address && (
+                    <p className="text-xs text-zinc-500">{c.address}</p>
+                  )}
                 </div>
                 <Badge
                   className={
@@ -191,11 +220,18 @@ export default function ClosersPage() {
         title={editId ? "Editar closer" : "Nuevo closer"}
       >
         <div className="space-y-3">
-          <Input
-            label="Nombre"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Nombre"
+              value={form.firstName}
+              onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+            />
+            <Input
+              label="Apellido"
+              value={form.lastName}
+              onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+            />
+          </div>
           <Input
             label="Email"
             type="email"
@@ -203,10 +239,22 @@ export default function ClosersPage() {
             onChange={(e) => setForm({ ...form, email: e.target.value })}
           />
           <Input
-            label="Teléfono / WhatsApp"
-            value={form.phone}
-            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            label="Dirección"
+            value={form.address}
+            onChange={(e) => setForm({ ...form, address: e.target.value })}
           />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="DNI"
+              value={form.dni}
+              onChange={(e) => setForm({ ...form, dni: e.target.value })}
+            />
+            <Input
+              label="Teléfono / WhatsApp"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
           {!editId && (
             <Input
               label="Contraseña inicial"

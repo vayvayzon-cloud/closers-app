@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, ShoppingCart, DollarSign, Wallet, Megaphone } from "lucide-react";
-import { PageHeader, KpiCard, Card, EmptyState } from "@/components/ui";
+import {
+  Users,
+  ShoppingCart,
+  DollarSign,
+  Wallet,
+  Megaphone,
+  Bell,
+  Check,
+  X,
+} from "lucide-react";
+import { PageHeader, KpiCard, Card, EmptyState, Button, Badge } from "@/components/ui";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatMoney, formatDateTime, monthLabel } from "@/lib/utils";
 
@@ -37,14 +46,59 @@ type Dash = {
   }>;
 };
 
+type QueueOrder = {
+  id: string;
+  closerName: string;
+  nombre: string;
+  apellido: string;
+  producto: string;
+  direccion: string;
+  localidad: string;
+  codigoPostal: string;
+  montoPedido: number;
+  createdAt: string;
+};
+
+const POLL_MS = 9000;
+
 export default function AdminDashboard() {
   const [data, setData] = useState<Dash | null>(null);
+  const [queue, setQueue] = useState<QueueOrder[]>([]);
+  const [queueBusy, setQueueBusy] = useState<string | null>(null);
+
+  const loadQueue = useCallback(async () => {
+    try {
+      const r = await fetch("/api/orders/pending-queue");
+      if (!r.ok) return;
+      const j = await r.json();
+      setQueue(j.orders || []);
+    } catch {
+      /* ignore poll errors */
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/dashboard")
       .then((r) => r.json())
       .then(setData);
-  }, []);
+    loadQueue();
+    const t = setInterval(loadQueue, POLL_MS);
+    return () => clearInterval(t);
+  }, [loadQueue]);
+
+  async function setQueueStatus(id: string, status: "cargado" | "descartado") {
+    setQueueBusy(id);
+    try {
+      await fetch(`/api/orders/${id}/queue`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      await loadQueue();
+    } finally {
+      setQueueBusy(null);
+    }
+  }
 
   if (!data) {
     return <div className="text-zinc-500 py-20 text-center">Cargando dashboard…</div>;
@@ -57,7 +111,95 @@ export default function AdminDashboard() {
       <PageHeader
         title="Dashboard"
         subtitle={`Resumen de ${monthLabel(data.year, data.month)}`}
+        actions={
+          queue.length > 0 ? (
+            <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/40 text-sm px-3 py-1">
+              <Bell className="h-3.5 w-3.5 inline mr-1.5" />
+              {queue.length} pendiente{queue.length === 1 ? "" : "s"} de carga
+            </Badge>
+          ) : null
+        }
       />
+
+      <Card className="mb-8 border-orange-500/30 bg-orange-500/5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5 text-orange-400" />
+            <h2 className="text-base font-semibold text-white">
+              Pedidos para cargar
+            </h2>
+            {queue.length > 0 && (
+              <span className="ml-1 rounded-full bg-orange-500 text-black text-xs font-bold px-2 py-0.5">
+                {queue.length}
+              </span>
+            )}
+          </div>
+          <p className="text-[11px] text-zinc-500">Actualización cada ~9s</p>
+        </div>
+        {queue.length === 0 ? (
+          <EmptyState message="No hay pedidos pendientes de carga" />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase text-zinc-500 border-b border-surface-border">
+                  <th className="pb-2 pr-3 font-medium">Hora</th>
+                  <th className="pb-2 pr-3 font-medium">Closer</th>
+                  <th className="pb-2 pr-3 font-medium">Cliente</th>
+                  <th className="pb-2 pr-3 font-medium">Producto</th>
+                  <th className="pb-2 pr-3 font-medium">Dirección</th>
+                  <th className="pb-2 pr-3 font-medium">Monto</th>
+                  <th className="pb-2 font-medium">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-border">
+                {queue.map((o) => (
+                  <tr key={o.id}>
+                    <td className="py-3 pr-3 text-zinc-400 whitespace-nowrap">
+                      {formatDateTime(o.createdAt)}
+                    </td>
+                    <td className="py-3 pr-3 text-orange-300 font-medium">
+                      {o.closerName}
+                    </td>
+                    <td className="py-3 pr-3 text-white">
+                      {o.nombre} {o.apellido}
+                    </td>
+                    <td className="py-3 pr-3 text-zinc-300">{o.producto || "—"}</td>
+                    <td className="py-3 pr-3 text-zinc-400">
+                      <p>{o.direccion}</p>
+                      <p className="text-[11px]">
+                        {o.localidad} ({o.codigoPostal})
+                      </p>
+                    </td>
+                    <td className="py-3 pr-3 font-medium">
+                      {formatMoney(o.montoPedido)}
+                    </td>
+                    <td className="py-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button
+                          size="sm"
+                          disabled={queueBusy === o.id}
+                          onClick={() => setQueueStatus(o.id, "cargado")}
+                        >
+                          <Check className="h-3.5 w-3.5" /> Marcar cargado
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={queueBusy === o.id}
+                          onClick={() => setQueueStatus(o.id, "descartado")}
+                        >
+                          <X className="h-3.5 w-3.5" /> Descartar
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5 mb-8">
         <KpiCard

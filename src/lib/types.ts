@@ -1,11 +1,17 @@
 export type Role = "admin" | "closer";
 export type OrderStatus = "pendiente" | "pagado" | "entregado" | "rechazado";
+export type CreatedBy = "closer" | "admin";
+export type AdminQueueStatus = "pendiente_carga" | "cargado" | "descartado";
 
 export interface User {
   id: string;
   email: string;
   passwordHash: string;
   name: string;
+  firstName: string;
+  lastName: string;
+  address: string;
+  dni: string;
   role: Role;
   phone?: string;
   active: boolean;
@@ -51,6 +57,10 @@ export interface Order {
   montoPedido: number;
   gananciaCloser: number;
   estado: OrderStatus;
+  producto: string;
+  productId?: string;
+  createdBy: CreatedBy;
+  adminQueueStatus: AdminQueueStatus;
   createdAt: string; // ISO timestamp with date+time
   updatedAt: string;
 }

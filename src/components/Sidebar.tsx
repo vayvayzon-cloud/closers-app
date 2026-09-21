@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -43,6 +44,28 @@ export function Sidebar({
   const pathname = usePathname();
   const router = useRouter();
   const nav = role === "admin" ? adminNav : closerNav;
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (role !== "admin") return;
+    let cancelled = false;
+    async function poll() {
+      try {
+        const r = await fetch("/api/orders/pending-queue");
+        if (!r.ok) return;
+        const j = await r.json();
+        if (!cancelled) setPendingCount(j.count || 0);
+      } catch {
+        /* ignore */
+      }
+    }
+    poll();
+    const t = setInterval(poll, 9000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
+  }, [role]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -56,12 +79,20 @@ export function Sidebar({
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-500 text-black">
           <Target className="h-5 w-5" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-white">Closers</p>
           <p className="text-[10px] uppercase tracking-wider text-orange-400">
             {role === "admin" ? "Admin" : "Panel Closer"}
           </p>
         </div>
+        {role === "admin" && pendingCount > 0 && (
+          <span
+            title={`${pendingCount} pedidos para cargar`}
+            className="shrink-0 rounded-full bg-orange-500 text-black text-[11px] font-bold min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center"
+          >
+            {pendingCount}
+          </span>
+        )}
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
@@ -72,6 +103,7 @@ export function Sidebar({
               item.href !== "/closer" &&
               pathname.startsWith(item.href));
           const Icon = item.icon;
+          const showBadge = item.href === "/admin" && pendingCount > 0;
           return (
             <Link
               key={item.href}
@@ -84,7 +116,12 @@ export function Sidebar({
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {showBadge && (
+                <span className="rounded-full bg-orange-500 text-black text-[10px] font-bold min-w-[1.1rem] h-4 px-1 flex items-center justify-center">
+                  {pendingCount}
+                </span>
+              )}
             </Link>
           );
         })}

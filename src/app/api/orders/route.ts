@@ -42,6 +42,20 @@ export async function POST(req: NextRequest) {
 
   const assignment = db.assignments.find((a) => a.closerId === closerId);
   const defaultGanancia = assignment?.gananciaFija ?? 0;
+  const assignedProduct = assignment
+    ? db.products.find((p) => p.id === assignment.productId)
+    : null;
+
+  const createdBy = user.role === "closer" ? ("closer" as const) : ("admin" as const);
+  const adminQueueStatus =
+    createdBy === "closer" ? ("pendiente_carga" as const) : ("cargado" as const);
+
+  const producto =
+    String(body.producto || "").trim() ||
+    (assignedProduct?.name || "");
+  const productId = body.productId
+    ? String(body.productId)
+    : assignment?.productId;
 
   const now = new Date().toISOString();
   const estado = (VALID.includes(body.estado) ? body.estado : "pendiente") as OrderStatus;
@@ -59,11 +73,18 @@ export async function POST(req: NextRequest) {
         ? Number(body.gananciaCloser)
         : defaultGanancia,
     estado,
+    producto,
+    productId,
+    createdBy,
+    adminQueueStatus,
     createdAt: now,
     updatedAt: now,
   };
   if (!order.nombre || !order.apellido) {
     return NextResponse.json({ error: "Nombre y apellido requeridos" }, { status: 400 });
+  }
+  if (!order.producto) {
+    return NextResponse.json({ error: "Producto requerido" }, { status: 400 });
   }
   await updateDb((d) => {
     d.orders.push(order);

@@ -63,7 +63,16 @@ export async function PATCH(
   await updateDb((d) => {
     const idx = d.users.findIndex((u) => u.id === params.id && u.role === "closer");
     if (idx === -1) return;
-    if (body.name !== undefined) d.users[idx].name = String(body.name).trim();
+    if (body.firstName !== undefined) d.users[idx].firstName = String(body.firstName).trim();
+    if (body.lastName !== undefined) d.users[idx].lastName = String(body.lastName).trim();
+    if (body.address !== undefined) d.users[idx].address = String(body.address).trim();
+    if (body.dni !== undefined) d.users[idx].dni = String(body.dni).trim();
+    if (body.name !== undefined) {
+      d.users[idx].name = String(body.name).trim();
+    } else if (body.firstName !== undefined || body.lastName !== undefined) {
+      d.users[idx].name =
+        `${d.users[idx].firstName || ""} ${d.users[idx].lastName || ""}`.trim();
+    }
     if (body.email !== undefined) d.users[idx].email = String(body.email).trim().toLowerCase();
     if (body.phone !== undefined) d.users[idx].phone = String(body.phone).trim();
     if (body.active !== undefined) d.users[idx].active = Boolean(body.active);

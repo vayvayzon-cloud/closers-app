@@ -33,9 +33,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
   const body = await req.json();
-  const name = String(body.name || "").trim();
+  const firstName = String(body.firstName || "").trim();
+  const lastName = String(body.lastName || "").trim();
+  const name =
+    String(body.name || "").trim() ||
+    `${firstName} ${lastName}`.trim();
   const email = String(body.email || "").trim().toLowerCase();
   const phone = String(body.phone || "").trim();
+  const address = String(body.address || "").trim();
+  const dni = String(body.dni || "").trim();
   const password = String(body.password || "closer123");
   if (!name || !email) {
     return NextResponse.json({ error: "Nombre y email requeridos" }, { status: 400 });
@@ -45,11 +51,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Email ya registrado" }, { status: 400 });
   }
   const now = new Date().toISOString();
+  const parts = name.split(/\s+/).filter(Boolean);
   const closer = {
     id: uuid(),
     email,
     passwordHash: bcrypt.hashSync(password, 10),
     name,
+    firstName: firstName || parts[0] || "",
+    lastName: lastName || parts.slice(1).join(" ") || "",
+    address,
+    dni,
     role: "closer" as const,
     phone,
     active: true,
