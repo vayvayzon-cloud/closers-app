@@ -4,14 +4,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { readDb, updateDb } from "@/lib/db";
 
 export async function GET() {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const db = readDb();
+  const db = await readDb();
   return NextResponse.json({ products: db.products });
 }
 
 export async function POST(req: NextRequest) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     active: true,
     createdAt: new Date().toISOString(),
   };
-  updateDb((d) => {
+  await updateDb((d) => {
     d.products.push(product);
   });
   return NextResponse.json({ product }, { status: 201 });

@@ -11,8 +11,11 @@ export function verifyPassword(plain: string, hash: string): boolean {
   return bcrypt.compareSync(plain, hash);
 }
 
-export function login(email: string, password: string): { user: User; token: string } | null {
-  const db = readDb();
+export async function login(
+  email: string,
+  password: string
+): Promise<{ user: User; token: string } | null> {
+  const db = await readDb();
   const user = db.users.find(
     (u) => u.email.toLowerCase() === email.toLowerCase() && u.active
   );
@@ -24,7 +27,7 @@ export function login(email: string, password: string): { user: User; token: str
   const now = new Date();
   const expires = new Date(now.getTime() + SESSION_DAYS * 24 * 60 * 60 * 1000);
 
-  updateDb((d) => {
+  await updateDb((d) => {
     d.sessions = d.sessions.filter((s) => new Date(s.expiresAt) > now);
     d.sessions.push({
       token,
@@ -37,19 +40,21 @@ export function login(email: string, password: string): { user: User; token: str
   return { user, token };
 }
 
-export function logout(token: string) {
-  updateDb((d) => {
+export async function logout(token: string) {
+  await updateDb((d) => {
     d.sessions = d.sessions.filter((s) => s.token !== token);
   });
 }
 
-export function getUserFromToken(token: string | undefined): User | null {
+export async function getUserFromToken(
+  token: string | undefined
+): Promise<User | null> {
   if (!token) return null;
-  const db = readDb();
+  const db = await readDb();
   const session = db.sessions.find((s) => s.token === token);
   if (!session) return null;
   if (new Date(session.expiresAt) < new Date()) {
-    updateDb((d) => {
+    await updateDb((d) => {
       d.sessions = d.sessions.filter((s) => s.token !== token);
     });
     return null;
@@ -58,10 +63,10 @@ export function getUserFromToken(token: string | undefined): User | null {
   return user || null;
 }
 
-export function getCurrentUser(): User | null {
+export async function getCurrentUser(): Promise<User | null> {
   const cookieStore = cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
-  return getUserFromToken(token);
+  return await getUserFromToken(token);
 }
 
 export function getSessionToken(): string | undefined {
@@ -72,6 +77,7 @@ export function getSessionToken(): string | undefined {
 export { COOKIE_NAME, SESSION_DAYS };
 
 export function publicUser(user: User) {
-  const { passwordHash: _, ...rest } = user;
+  const { passwordHash, ...rest } = user;
+  void passwordHash;
   return rest;
 }

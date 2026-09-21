@@ -9,9 +9,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const db = readDb();
+  const db = await readDb();
   const existing = db.orders.find((o) => o.id === params.id);
   if (!existing) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
   if (user.role === "closer" && existing.closerId !== user.id) {
@@ -19,7 +19,7 @@ export async function PATCH(
   }
   const body = await req.json();
   let order = null;
-  updateDb((d) => {
+  await updateDb((d) => {
     const idx = d.orders.findIndex((o) => o.id === params.id);
     if (idx === -1) return;
     const fields = [
@@ -51,12 +51,12 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
   let found = false;
-  updateDb((d) => {
+  await updateDb((d) => {
     const before = d.orders.length;
     d.orders = d.orders.filter((o) => o.id !== params.id);
     found = d.orders.length < before;

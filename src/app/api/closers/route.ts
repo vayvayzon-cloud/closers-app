@@ -5,11 +5,11 @@ import { getCurrentUser, publicUser } from "@/lib/auth";
 import { readDb, updateDb } from "@/lib/db";
 
 export async function GET() {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
-  const db = readDb();
+  const db = await readDb();
   const closers = db.users
     .filter((u) => u.role === "closer")
     .map(publicUser)
@@ -28,7 +28,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   if (!name || !email) {
     return NextResponse.json({ error: "Nombre y email requeridos" }, { status: 400 });
   }
-  const db = readDb();
+  const db = await readDb();
   if (db.users.some((u) => u.email === email)) {
     return NextResponse.json({ error: "Email ya registrado" }, { status: 400 });
   }
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     active: true,
     createdAt: now,
   };
-  updateDb((d) => {
+  await updateDb((d) => {
     d.users.push(closer);
   });
   return NextResponse.json({ closer: publicUser(closer) }, { status: 201 });

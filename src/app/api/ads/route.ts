@@ -5,9 +5,9 @@ import { readDb, updateDb } from "@/lib/db";
 import { currentYearMonth } from "@/lib/utils";
 
 export async function GET(req: NextRequest) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const db = readDb();
+  const db = await readDb();
   const { year: cy, month: cm } = currentYearMonth();
   const year = Number(req.nextUrl.searchParams.get("year")) || cy;
   const month = Number(req.nextUrl.searchParams.get("month")) || cm;
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   if (!closerId) return NextResponse.json({ error: "Closer requerido" }, { status: 400 });
 
   let result = null;
-  updateDb((d) => {
+  await updateDb((d) => {
     const existing = d.adSpends.find(
       (a) => a.closerId === closerId && a.year === year && a.month === month
     );

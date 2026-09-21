@@ -6,13 +6,13 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
   const body = await req.json();
   let product = null;
-  updateDb((d) => {
+  await updateDb((d) => {
     const idx = d.products.findIndex((p) => p.id === params.id);
     if (idx === -1) return;
     if (body.name !== undefined) d.products[idx].name = String(body.name).trim();
@@ -29,12 +29,12 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
   let found = false;
-  updateDb((d) => {
+  await updateDb((d) => {
     const idx = d.products.findIndex((p) => p.id === params.id);
     if (idx === -1) return;
     found = true;

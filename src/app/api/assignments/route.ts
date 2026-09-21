@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { updateDb } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Closer y producto requeridos" }, { status: 400 });
   }
   let assignment = null;
-  updateDb((d) => {
+  await updateDb((d) => {
     // One assignment per closer — replace if exists
     d.assignments = d.assignments.filter((a) => a.closerId !== closerId);
     assignment = {

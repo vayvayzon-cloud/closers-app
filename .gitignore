@@ -4,6 +4,8 @@ out/
 data/db.json
 .env
 .env*.local
+!.env.example
 *.log
 tsconfig.tsbuildinfo
 .DS_Store
+.vercel

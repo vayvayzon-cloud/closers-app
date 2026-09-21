@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
     if (!email || !password) {
       return NextResponse.json({ error: "Email y contraseña requeridos" }, { status: 400 });
     }
-    const result = login(email, password);
+    const result = await login(email, password);
     if (!result) {
       return NextResponse.json({ error: "Credenciales inválidas" }, { status: 401 });
     }

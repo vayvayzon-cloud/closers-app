@@ -7,9 +7,9 @@ import type { OrderStatus } from "@/lib/types";
 const VALID: OrderStatus[] = ["pendiente", "pagado", "entregado", "rechazado"];
 
 export async function GET(req: NextRequest) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const db = readDb();
+  const db = await readDb();
   const closerId = req.nextUrl.searchParams.get("closerId");
   let orders = db.orders;
   if (user.role === "closer") {
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const body = await req.json();
   let closerId = String(body.closerId || "");
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!closerId) {
     return NextResponse.json({ error: "Closer requerido" }, { status: 400 });
   }
-  const db = readDb();
+  const db = await readDb();
   const closer = db.users.find((u) => u.id === closerId && u.role === "closer");
   if (!closer) return NextResponse.json({ error: "Closer inválido" }, { status: 400 });
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
   if (!order.nombre || !order.apellido) {
     return NextResponse.json({ error: "Nombre y apellido requeridos" }, { status: 400 });
   }
-  updateDb((d) => {
+  await updateDb((d) => {
     d.orders.push(order);
   });
   return NextResponse.json({ order }, { status: 201 });

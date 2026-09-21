@@ -7,12 +7,12 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   if (user.role !== "admin" && user.id !== params.id) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
-  const db = readDb();
+  const db = await readDb();
   const closer = db.users.find((u) => u.id === params.id && u.role === "closer");
   if (!closer) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
@@ -54,13 +54,13 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
   const body = await req.json();
   let updated = null;
-  updateDb((d) => {
+  await updateDb((d) => {
     const idx = d.users.findIndex((u) => u.id === params.id && u.role === "closer");
     if (idx === -1) return;
     if (body.name !== undefined) d.users[idx].name = String(body.name).trim();
@@ -77,12 +77,12 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
   let found = false;
-  updateDb((d) => {
+  await updateDb((d) => {
     const idx = d.users.findIndex((u) => u.id === params.id && u.role === "closer");
     if (idx === -1) return;
     found = true;

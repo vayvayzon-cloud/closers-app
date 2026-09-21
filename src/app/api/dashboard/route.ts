@@ -9,9 +9,9 @@ import {
 } from "@/lib/utils";
 
 export async function GET() {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-  const db = readDb();
+  const db = await readDb();
   const { year, month } = currentYearMonth();
 
   if (user.role === "admin") {

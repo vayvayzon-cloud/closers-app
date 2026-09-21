@@ -6,13 +6,13 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = getCurrentUser();
+  const user = await getCurrentUser();
   if (!user || user.role !== "admin") {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
   const body = await req.json();
   let adSpend = null;
-  updateDb((d) => {
+  await updateDb((d) => {
     const idx = d.adSpends.findIndex((a) => a.id === params.id);
     if (idx === -1) return;
     if (body.budget !== undefined) d.adSpends[idx].budget = Number(body.budget) || 0;
