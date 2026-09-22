@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { PageHeader, KpiCard, Card, EmptyState, Button, Badge } from "@/components/ui";
+import { AdminMainMenu } from "@/components/AdminMainMenu";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatMoney, formatDateTime, monthLabel } from "@/lib/utils";
 
@@ -100,17 +101,17 @@ export default function AdminDashboard() {
     }
   }
 
-  if (!data) {
-    return <div className="text-zinc-500 py-20 text-center">Cargando dashboard…</div>;
-  }
-
-  const { kpis } = data;
+  const { kpis } = data || { kpis: null };
 
   return (
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle={`Resumen de ${monthLabel(data.year, data.month)}`}
+        subtitle={
+          data
+            ? `Resumen de ${monthLabel(data.year, data.month)}`
+            : "Cargando resumen…"
+        }
         actions={
           queue.length > 0 ? (
             <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/40 text-sm px-3 py-1">
@@ -120,6 +121,13 @@ export default function AdminDashboard() {
           ) : null
         }
       />
+
+      <AdminMainMenu />
+
+      {!data || !kpis ? (
+        <div className="text-zinc-500 py-16 text-center">Cargando dashboard…</div>
+      ) : (
+        <>
 
       <Card className="mb-8 border-orange-500/30 bg-orange-500/5">
         <div className="flex items-center justify-between mb-4">
@@ -306,6 +314,8 @@ export default function AdminDashboard() {
           )}
         </Card>
       </div>
+        </>
+      )}
     </div>
   );
 }
