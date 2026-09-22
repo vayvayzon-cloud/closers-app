@@ -18,10 +18,21 @@ export async function PATCH(
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
   const body = await req.json();
+  if (user.role === "closer" && body.estado !== undefined) {
+    const next = body.estado as string;
+    if (next === "entregado" || next === "rechazado") {
+      return NextResponse.json(
+        { error: "Solo admin puede marcar entregado/rechazado" },
+        { status: 403 }
+      );
+    }
+  }
+
   let order = null;
   await updateDb((d) => {
     const idx = d.orders.findIndex((o) => o.id === params.id);
     if (idx === -1) return;
+    const o = d.orders[idx];
     const fields = [
       "nombre",
       "apellido",
@@ -31,22 +42,51 @@ export async function PATCH(
       "producto",
     ] as const;
     for (const f of fields) {
-      if (body[f] !== undefined) d.orders[idx][f] = String(body[f]).trim();
+      if (body[f] !== undefined) o[f] = String(body[f]).trim();
     }
     if (body.productId !== undefined) {
-      d.orders[idx].productId = body.productId ? String(body.productId) : undefined;
+      o.productId = body.productId ? String(body.productId) : undefined;
     }
-    if (body.montoPedido !== undefined) d.orders[idx].montoPedido = Number(body.montoPedido) || 0;
+    if (body.montoPedido !== undefined) o.montoPedido = Number(body.montoPedido) || 0;
     if (body.gananciaCloser !== undefined)
-      d.orders[idx].gananciaCloser = Number(body.gananciaCloser) || 0;
+      o.gananciaCloser = Number(body.gananciaCloser) || 0;
+    if (body.costoFleteRechazo !== undefined)
+      o.costoFleteRechazo = Number(body.costoFleteRechazo) || 0;
+
     if (body.estado !== undefined && VALID.includes(body.estado)) {
-      d.orders[idx].estado = body.estado;
+      const nextEstado = body.estado as OrderStatus;
+      o.estado = nextEstado;
+
+      if (nextEstado === "entregado" && !(Number(o.gananciaCloser) > 0)) {
+        const assignment = o.productId
+          ? d.assignments.find(
+              (a) => a.closerId === o.closerId && a.productId === o.productId
+            )
+          : d.assignments.find((a) => a.closerId === o.closerId);
+        const product = o.productId
+          ? d.products.find((p) => p.id === o.productId)
+          : assignment
+            ? d.products.find((p) => p.id === assignment.productId)
+            : null;
+        o.gananciaCloser =
+          assignment?.gananciaFija ?? product?.gananciaCloser ?? o.gananciaCloser;
+      }
+
+      if (nextEstado === "rechazado") {
+        if (body.costoFleteRechazo !== undefined) {
+          o.costoFleteRechazo = Number(body.costoFleteRechazo) || 0;
+        } else if (!(Number(o.costoFleteRechazo) > 0)) {
+          const pct = d.settings?.defaultRejectionFeePercent ?? 10;
+          o.costoFleteRechazo = Math.round((o.montoPedido * pct) / 100);
+        }
+      }
     }
+
     if (user.role === "admin" && body.closerId) {
-      d.orders[idx].closerId = String(body.closerId);
+      o.closerId = String(body.closerId);
     }
-    d.orders[idx].updatedAt = new Date().toISOString();
-    order = d.orders[idx];
+    o.updatedAt = new Date().toISOString();
+    order = o;
   });
   return NextResponse.json({ order });
 }

@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { v4 as uuid } from "uuid";
 import { getCurrentUser, publicUser } from "@/lib/auth";
 import { readDb, updateDb } from "@/lib/db";
-import { ordersInMonth, getAdSpend, calcLiquidacion, currentYearMonth } from "@/lib/utils";
+import {
+  ordersInMonth,
+  getAdSpend,
+  calcLiquidacion,
+  calcFinanzasMes,
+  currentYearMonth,
+} from "@/lib/utils";
 
 export async function GET(
   _req: NextRequest,
@@ -17,7 +24,13 @@ export async function GET(
   if (!closer) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
   const { year, month } = currentYearMonth();
-  const assignment = db.assignments.find((a) => a.closerId === closer.id);
+  const assignments = db.assignments.filter((a) => a.closerId === closer.id);
+  const assignedProducts = assignments.map((a) => ({
+    ...a,
+    product: db.products.find((p) => p.id === a.productId) || null,
+  }));
+  // legacy single fields
+  const assignment = assignments[0] || null;
   const product = assignment
     ? db.products.find((p) => p.id === assignment.productId)
     : null;
@@ -25,8 +38,8 @@ export async function GET(
   const monthOrders = ordersInMonth(allOrders, year, month);
   const ad = getAdSpend(db.adSpends, closer.id, year, month);
   const liq = calcLiquidacion(monthOrders, ad?.spend || 0);
+  const finanzas = calcFinanzasMes(monthOrders, ad?.spend || 0);
 
-  // Calendar: days with orders this month
   const daysWithOrders = new Set(
     monthOrders.map((o) => o.createdAt.slice(0, 10))
   );
@@ -35,10 +48,13 @@ export async function GET(
     closer: publicUser(closer),
     assignment: assignment || null,
     product: product || null,
+    assignments: assignedProducts,
     orders: allOrders.sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     monthOrders,
     adSpend: ad || null,
     liquidacion: liq,
+    finanzas,
+    settings: db.settings,
     year,
     month,
     daysWithOrders: Array.from(daysWithOrders),
@@ -76,6 +92,27 @@ export async function PATCH(
     if (body.email !== undefined) d.users[idx].email = String(body.email).trim().toLowerCase();
     if (body.phone !== undefined) d.users[idx].phone = String(body.phone).trim();
     if (body.active !== undefined) d.users[idx].active = Boolean(body.active);
+
+    // Optional: set/update commission for a product
+    if (body.productId && body.gananciaFija !== undefined) {
+      const productId = String(body.productId);
+      const gananciaFija = Number(body.gananciaFija) || 0;
+      const existing = d.assignments.find(
+        (a) => a.closerId === params.id && a.productId === productId
+      );
+      if (existing) {
+        existing.gananciaFija = gananciaFija;
+      } else {
+        d.assignments.push({
+          id: uuid(),
+          closerId: params.id,
+          productId,
+          gananciaFija,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    }
+
     updated = publicUser(d.users[idx]);
   });
   if (!updated) return NextResponse.json({ error: "No encontrado" }, { status: 404 });

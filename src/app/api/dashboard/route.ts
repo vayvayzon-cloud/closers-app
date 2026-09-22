@@ -6,6 +6,7 @@ import {
   ordersInMonth,
   getAdSpend,
   calcLiquidacion,
+  calcFinanzasMes,
 } from "@/lib/utils";
 
 export async function GET() {
@@ -69,7 +70,9 @@ export async function GET() {
   const monthOrders = ordersInMonth(allOrders, year, month);
   const ad = getAdSpend(db.adSpends, user.id, year, month);
   const liq = calcLiquidacion(monthOrders, ad?.spend || 0);
-  const assignment = db.assignments.find((a) => a.closerId === user.id);
+  const finanzas = calcFinanzasMes(monthOrders, ad?.spend || 0);
+  const assignments = db.assignments.filter((a) => a.closerId === user.id);
+  const assignment = assignments[0] || null;
   const product = assignment
     ? db.products.find((p) => p.id === assignment.productId)
     : null;
@@ -88,7 +91,9 @@ export async function GET() {
       adBudget: ad?.budget || 0,
       ...liq,
     },
+    finanzas,
     assignment: assignment || null,
+    assignments,
     product: product || null,
     daysWithOrders,
     recentOrders: monthOrders

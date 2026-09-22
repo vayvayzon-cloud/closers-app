@@ -51,18 +51,53 @@ export function getAdSpend(
   );
 }
 
-/** Liquidación = sum(ganancia of entregados) − gasto ads del mes */
+/** Liquidación = ganancia entregados − ads − costos flete rechazo */
 export function calcLiquidacion(
   orders: Order[],
   adSpend: number
-): { entregadosGanancia: number; adSpend: number; liquidacion: number; countEntregados: number } {
+): {
+  entregadosGanancia: number;
+  adSpend: number;
+  costoFleteRechazo: number;
+  countRechazados: number;
+  liquidacion: number;
+  countEntregados: number;
+} {
   const entregados = orders.filter((o) => o.estado === "entregado");
+  const rechazados = orders.filter((o) => o.estado === "rechazado");
   const entregadosGanancia = entregados.reduce((s, o) => s + o.gananciaCloser, 0);
+  const costoFleteRechazo = rechazados.reduce(
+    (s, o) => s + (Number(o.costoFleteRechazo) || 0),
+    0
+  );
   return {
     entregadosGanancia,
     adSpend,
-    liquidacion: entregadosGanancia - adSpend,
+    costoFleteRechazo,
+    countRechazados: rechazados.length,
+    liquidacion: entregadosGanancia - adSpend - costoFleteRechazo,
     countEntregados: entregados.length,
+  };
+}
+
+/** Monthly finance summary for a closer */
+export function calcFinanzasMes(orders: Order[], adSpend: number) {
+  const enRuta = orders.filter((o) => o.estado === "pendiente" || o.estado === "pagado");
+  const entregados = orders.filter((o) => o.estado === "entregado");
+  const rechazados = orders.filter((o) => o.estado === "rechazado");
+  const liq = calcLiquidacion(orders, adSpend);
+  return {
+    cantidadPedidos: orders.length,
+    facturacionBruta: orders.reduce((s, o) => s + o.montoPedido, 0),
+    enRutaCount: enRuta.length,
+    enRutaMonto: enRuta.reduce((s, o) => s + o.montoPedido, 0),
+    enRutaGananciaPotencial: enRuta.reduce((s, o) => s + o.gananciaCloser, 0),
+    entregadosCount: entregados.length,
+    entregadosGanancia: liq.entregadosGanancia,
+    rechazadosCount: rechazados.length,
+    costoFleteRechazo: liq.costoFleteRechazo,
+    adSpend,
+    liquidacion: liq.liquidacion,
   };
 }
 

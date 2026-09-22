@@ -13,26 +13,23 @@ import {
   Calendar,
   LogOut,
   Target,
+  Settings,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
-const adminNav: NavItem[] = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/closers", label: "Closers", icon: Users },
-  { href: "/admin/productos", label: "Productos", icon: Package },
-  { href: "/admin/pedidos", label: "Pedidos", icon: ShoppingCart },
-  { href: "/admin/ads", label: "Ads / Presupuesto", icon: Megaphone },
-  { href: "/admin/finanzas", label: "Finanzas", icon: Wallet },
-];
-
 const closerNav: NavItem[] = [
-  { href: "/closer", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/closer/pedidos", label: "Mis pedidos", icon: ShoppingCart },
-  { href: "/closer/liquidacion", label: "Liquidación", icon: Wallet },
+  { href: "/closer", label: "Panel", icon: LayoutDashboard },
+  { href: "/closer/pedidos", label: "Pedidos", icon: ShoppingCart },
+  { href: "/closer/finanzas", label: "Finanzas", icon: Wallet },
+  { href: "/closer/productos", label: "Productos", icon: Package },
   { href: "/closer/calendario", label: "Calendario", icon: Calendar },
 ];
+
+type CloserMini = { id: string; name: string; active: boolean };
 
 export function Sidebar({
   role,
@@ -43,8 +40,9 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const nav = role === "admin" ? adminNav : closerNav;
   const [pendingCount, setPendingCount] = useState(0);
+  const [closers, setClosers] = useState<CloserMini[]>([]);
+  const [closersOpen, setClosersOpen] = useState(true);
 
   useEffect(() => {
     if (role !== "admin") return;
@@ -67,10 +65,41 @@ export function Sidebar({
     };
   }, [role]);
 
+  useEffect(() => {
+    if (role !== "admin") return;
+    fetch("/api/closers")
+      .then((r) => r.json())
+      .then((j) => {
+        setClosers((j.closers || []).filter((c: CloserMini) => c.active));
+      })
+      .catch(() => {});
+  }, [role]);
+
+  useEffect(() => {
+    if (pathname.startsWith("/admin/closers")) setClosersOpen(true);
+  }, [pathname]);
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
     router.refresh();
+  }
+
+  function linkClass(active: boolean) {
+    return cn(
+      "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
+      active
+        ? "bg-orange-500/15 text-orange-400"
+        : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100"
+    );
+  }
+
+  function SectionLabel({ children }: { children: React.ReactNode }) {
+    return (
+      <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+        {children}
+      </p>
+    );
   }
 
   return (
@@ -95,36 +124,152 @@ export function Sidebar({
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
-        {nav.map((item) => {
-          const active =
-            pathname === item.href ||
-            (item.href !== "/admin" &&
-              item.href !== "/closer" &&
-              pathname.startsWith(item.href));
-          const Icon = item.icon;
-          const showBadge = item.href === "/admin" && pendingCount > 0;
-          return (
+      <nav className="flex-1 space-y-0.5 p-3 overflow-y-auto">
+        {role === "admin" ? (
+          <>
+            <SectionLabel>Menú</SectionLabel>
             <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition",
-                active
-                  ? "bg-orange-500/15 text-orange-400"
-                  : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-100"
-              )}
+              href="/admin"
+              className={linkClass(pathname === "/admin")}
             >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="flex-1">{item.label}</span>
-              {showBadge && (
+              <LayoutDashboard className="h-4 w-4 shrink-0" />
+              <span className="flex-1">Panel principal</span>
+              {pendingCount > 0 && (
                 <span className="rounded-full bg-orange-500 text-black text-[10px] font-bold min-w-[1.1rem] h-4 px-1 flex items-center justify-center">
                   {pendingCount}
                 </span>
               )}
             </Link>
-          );
-        })}
+
+            <button
+              type="button"
+              onClick={() => setClosersOpen((v) => !v)}
+              className={cn(
+                linkClass(
+                  pathname.startsWith("/admin/closers")
+                ),
+                "w-full"
+              )}
+            >
+              <Users className="h-4 w-4 shrink-0" />
+              <span className="flex-1 text-left">Closers</span>
+              {closersOpen ? (
+                <ChevronDown className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5" />
+              )}
+            </button>
+            {closersOpen && (
+              <div className="ml-3 space-y-0.5 border-l border-surface-border pl-2">
+                <Link
+                  href="/admin/closers"
+                  className={cn(
+                    "flex items-center rounded-lg px-2.5 py-1.5 text-xs transition",
+                    pathname === "/admin/closers"
+                      ? "text-orange-400"
+                      : "text-zinc-500 hover:text-zinc-200"
+                  )}
+                >
+                  Ver todos
+                </Link>
+                {closers.map((c) => {
+                  const href = `/admin/closers/${c.id}`;
+                  const active = pathname === href;
+                  return (
+                    <Link
+                      key={c.id}
+                      href={href}
+                      className={cn(
+                        "flex items-center rounded-lg px-2.5 py-1.5 text-xs truncate transition",
+                        active
+                          ? "bg-orange-500/10 text-orange-400"
+                          : "text-zinc-500 hover:text-zinc-200"
+                      )}
+                      title={c.name}
+                    >
+                      {c.name}
+                    </Link>
+                  );
+                })}
+                {closers.length === 0 && (
+                  <p className="px-2.5 py-1 text-[11px] text-zinc-600">
+                    Sin closers activos
+                  </p>
+                )}
+              </div>
+            )}
+
+            <Link
+              href="/admin/pedidos"
+              className={linkClass(
+                pathname.startsWith("/admin/pedidos")
+              )}
+            >
+              <ShoppingCart className="h-4 w-4 shrink-0" />
+              <span className="flex-1">Pedidos</span>
+              {pendingCount > 0 && (
+                <span className="rounded-full bg-orange-500 text-black text-[10px] font-bold min-w-[1.1rem] h-4 px-1 flex items-center justify-center">
+                  {pendingCount}
+                </span>
+              )}
+            </Link>
+
+            <Link
+              href="/admin/productos"
+              className={linkClass(
+                pathname.startsWith("/admin/productos")
+              )}
+            >
+              <Package className="h-4 w-4 shrink-0" />
+              Productos
+            </Link>
+
+            <Link
+              href="/admin/finanzas"
+              className={linkClass(
+                pathname.startsWith("/admin/finanzas")
+              )}
+            >
+              <Wallet className="h-4 w-4 shrink-0" />
+              Finanzas
+            </Link>
+
+            <Link
+              href="/admin/ads"
+              className={linkClass(pathname.startsWith("/admin/ads"))}
+            >
+              <Megaphone className="h-4 w-4 shrink-0" />
+              Publicidad
+            </Link>
+
+            <Link
+              href="/admin/config"
+              className={linkClass(
+                pathname.startsWith("/admin/config")
+              )}
+            >
+              <Settings className="h-4 w-4 shrink-0" />
+              Configuración
+            </Link>
+          </>
+        ) : (
+          closerNav.map((item) => {
+            const active =
+              pathname === item.href ||
+              (item.href !== "/closer" && pathname.startsWith(item.href));
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={linkClass(active)}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                {item.label}
+              </Link>
+            );
+          })
+        )}
       </nav>
 
       <div className="border-t border-surface-border p-4">

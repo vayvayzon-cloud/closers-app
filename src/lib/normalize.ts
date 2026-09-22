@@ -1,4 +1,11 @@
-import type { Database, Order, User } from "./types";
+import type {
+  AppSettings,
+  Database,
+  Order,
+  Product,
+  User,
+} from "./types";
+import { DEFAULT_SETTINGS } from "./types";
 
 function splitName(name: string): { firstName: string; lastName: string } {
   const parts = (name || "").trim().split(/\s+/).filter(Boolean);
@@ -36,6 +43,41 @@ export function normalizeUser(u: Partial<User> & { id: string; email: string }):
   };
 }
 
+export function normalizeProduct(
+  p: Partial<Product> & { id: string; name: string }
+): Product {
+  const precioVenta =
+    p.precioVenta !== undefined && p.precioVenta !== null
+      ? Number(p.precioVenta) || 0
+      : Number(p.price) || 0;
+  let images: string[] = [];
+  if (Array.isArray(p.images)) {
+    images = p.images.map(String).filter(Boolean).slice(0, 5);
+  }
+  let topRank: number | null = null;
+  if (p.topRank !== undefined && p.topRank !== null && p.topRank !== ("" as unknown)) {
+    const n = Number(p.topRank);
+    if (Number.isFinite(n) && n >= 1 && n <= 10) topRank = Math.round(n);
+  }
+  return {
+    id: p.id,
+    name: String(p.name || ""),
+    description: p.description !== undefined && p.description !== null ? String(p.description) : "",
+    price: precioVenta,
+    images,
+    fichaTecnica:
+      p.fichaTecnica !== undefined && p.fichaTecnica !== null
+        ? String(p.fichaTecnica)
+        : "",
+    precioProveedor: Number(p.precioProveedor) || 0,
+    precioVenta,
+    gananciaCloser: Number(p.gananciaCloser) || 0,
+    topRank,
+    active: p.active !== undefined ? Boolean(p.active) : true,
+    createdAt: p.createdAt || new Date().toISOString(),
+  };
+}
+
 export function normalizeOrder(o: Partial<Order> & { id: string; closerId: string }): Order {
   return {
     id: o.id,
@@ -57,8 +99,24 @@ export function normalizeOrder(o: Partial<Order> & { id: string; closerId: strin
       o.adminQueueStatus === "descartado"
         ? o.adminQueueStatus
         : "cargado",
+    costoFleteRechazo: Number(o.costoFleteRechazo) || 0,
     createdAt: o.createdAt || new Date().toISOString(),
     updatedAt: o.updatedAt || o.createdAt || new Date().toISOString(),
+  };
+}
+
+export function normalizeSettings(s?: Partial<AppSettings> | null): AppSettings {
+  if (!s || typeof s !== "object") return { ...DEFAULT_SETTINGS };
+  return {
+    companyName:
+      s.companyName !== undefined && s.companyName !== null
+        ? String(s.companyName)
+        : DEFAULT_SETTINGS.companyName,
+    defaultRejectionFeePercent:
+      s.defaultRejectionFeePercent !== undefined && s.defaultRejectionFeePercent !== null
+        ? Number(s.defaultRejectionFeePercent) || 0
+        : DEFAULT_SETTINGS.defaultRejectionFeePercent,
+    notes: s.notes !== undefined && s.notes !== null ? String(s.notes) : "",
   };
 }
 
@@ -68,10 +126,13 @@ export function normalizeDatabase(db: Database): Database {
     ...db,
     users: (db.users || []).map((u) => normalizeUser(u)),
     orders: (db.orders || []).map((o) => normalizeOrder(o)),
-    products: db.products || [],
+    products: (db.products || []).map((p) =>
+      normalizeProduct(p as Partial<Product> & { id: string; name: string })
+    ),
     assignments: db.assignments || [],
     adSpends: db.adSpends || [],
     sessions: db.sessions || [],
+    settings: normalizeSettings((db as Partial<Database>).settings),
     seeded: Boolean(db.seeded),
   };
 }

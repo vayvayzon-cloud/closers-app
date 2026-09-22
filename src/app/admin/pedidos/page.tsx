@@ -26,6 +26,7 @@ type Order = {
   producto?: string;
   montoPedido: number;
   gananciaCloser: number;
+  costoFleteRechazo?: number;
   estado: string;
   createdAt: string;
 };
@@ -42,6 +43,7 @@ const emptyForm = {
   producto: "",
   montoPedido: "",
   gananciaCloser: "",
+  costoFleteRechazo: "",
   estado: "pendiente",
 };
 
@@ -52,15 +54,23 @@ export default function PedidosAdminPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [filterCloser, setFilterCloser] = useState("");
+  const [rejectPct, setRejectPct] = useState(10);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectOrder, setRejectOrder] = useState<Order | null>(null);
+  const [rejectFee, setRejectFee] = useState("");
 
   async function load() {
     const q = filterCloser ? `?closerId=${filterCloser}` : "";
-    const [o, c] = await Promise.all([
+    const [o, c, s] = await Promise.all([
       fetch(`/api/orders${q}`).then((r) => r.json()),
       fetch("/api/closers").then((r) => r.json()),
+      fetch("/api/settings").then((r) => r.json()),
     ]);
     setOrders(o.orders || []);
     setClosers((c.closers || []).filter((x: Closer) => x.active));
+    if (s.settings?.defaultRejectionFeePercent != null) {
+      setRejectPct(Number(s.settings.defaultRejectionFeePercent) || 10);
+    }
   }
 
   useEffect(() => {
@@ -86,16 +96,18 @@ export default function PedidosAdminPage() {
       producto: o.producto || "",
       montoPedido: String(o.montoPedido),
       gananciaCloser: String(o.gananciaCloser),
+      costoFleteRechazo: String(o.costoFleteRechazo || 0),
       estado: o.estado,
     });
     setOpen(true);
   }
 
   async function save() {
-    const payload = {
+    const payload: Record<string, unknown> = {
       ...form,
       montoPedido: Number(form.montoPedido) || 0,
       gananciaCloser: Number(form.gananciaCloser) || 0,
+      costoFleteRechazo: Number(form.costoFleteRechazo) || 0,
     };
     if (editId) {
       await fetch(`/api/orders/${editId}`, {
@@ -117,6 +129,37 @@ export default function PedidosAdminPage() {
   async function remove(id: string) {
     if (!confirm("¿Eliminar este pedido?")) return;
     await fetch(`/api/orders/${id}`, { method: "DELETE" });
+    load();
+  }
+
+  async function quickEstado(o: Order, estado: string) {
+    if (estado === "rechazado") {
+      const suggested = Math.round((o.montoPedido * rejectPct) / 100);
+      setRejectOrder(o);
+      setRejectFee(String(o.costoFleteRechazo || suggested));
+      setRejectOpen(true);
+      return;
+    }
+    await fetch(`/api/orders/${o.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estado }),
+    });
+    load();
+  }
+
+  async function confirmReject() {
+    if (!rejectOrder) return;
+    await fetch(`/api/orders/${rejectOrder.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        estado: "rechazado",
+        costoFleteRechazo: Number(rejectFee) || 0,
+      }),
+    });
+    setRejectOpen(false);
+    setRejectOrder(null);
     load();
   }
 
@@ -184,19 +227,46 @@ export default function PedidosAdminPage() {
                   </td>
                   <td className="px-4 py-3 text-zinc-300">{o.producto || "—"}</td>
                   <td className="px-4 py-3 text-zinc-300">{o.closerName}</td>
-                  <td className="px-4 py-3 font-medium">{formatMoney(o.montoPedido)}</td>
+                  <td className="px-4 py-3 font-medium">
+                    {formatMoney(o.montoPedido)}
+                  </td>
                   <td className="px-4 py-3 text-orange-400">
                     {formatMoney(o.gananciaCloser)}
+                    {o.estado === "rechazado" && (
+                      <p className="text-[10px] text-red-400">
+                        flete {formatMoney(o.costoFleteRechazo || 0)}
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={o.estado} />
+                    <div className="flex flex-col gap-1">
+                      <StatusBadge status={o.estado} />
+                      <select
+                        className="rounded-lg border border-surface-border bg-surface-100 px-2 py-1 text-xs text-zinc-300"
+                        value={o.estado}
+                        onChange={(e) => quickEstado(o, e.target.value)}
+                      >
+                        <option value="pendiente">Pendiente</option>
+                        <option value="pagado">Pagado</option>
+                        <option value="entregado">Entregado</option>
+                        <option value="rechazado">Rechazado</option>
+                      </select>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(o)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEdit(o)}
+                      >
                         Editar
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => remove(o.id)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => remove(o.id)}
+                      >
                         <Trash2 className="h-3.5 w-3.5 text-red-400" />
                       </Button>
                     </div>
@@ -252,7 +322,9 @@ export default function PedidosAdminPage() {
             <Input
               label="Código postal"
               value={form.codigoPostal}
-              onChange={(e) => setForm({ ...form, codigoPostal: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, codigoPostal: e.target.value })
+              }
             />
           </div>
           <Input
@@ -266,7 +338,9 @@ export default function PedidosAdminPage() {
               label="Monto pedido"
               type="number"
               value={form.montoPedido}
-              onChange={(e) => setForm({ ...form, montoPedido: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, montoPedido: e.target.value })
+              }
             />
             <Input
               label="Ganancia closer"
@@ -280,18 +354,68 @@ export default function PedidosAdminPage() {
           <Select
             label="Estado"
             value={form.estado}
-            onChange={(e) => setForm({ ...form, estado: e.target.value })}
+            onChange={(e) => {
+              const estado = e.target.value;
+              let costoFleteRechazo = form.costoFleteRechazo;
+              if (estado === "rechazado" && !costoFleteRechazo) {
+                const monto = Number(form.montoPedido) || 0;
+                costoFleteRechazo = String(Math.round((monto * rejectPct) / 100));
+              }
+              setForm({ ...form, estado, costoFleteRechazo });
+            }}
           >
             <option value="pendiente">Pendiente</option>
             <option value="pagado">Pagado</option>
             <option value="entregado">Entregado</option>
             <option value="rechazado">Rechazado</option>
           </Select>
+          {form.estado === "rechazado" && (
+            <Input
+              label="Costo flete rechazo (ARS)"
+              type="number"
+              value={form.costoFleteRechazo}
+              onChange={(e) =>
+                setForm({ ...form, costoFleteRechazo: e.target.value })
+              }
+            />
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setOpen(false)}>
               Cancelar
             </Button>
             <Button onClick={save}>Guardar</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={rejectOpen}
+        onClose={() => setRejectOpen(false)}
+        title="Costo flete rechazo"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-zinc-400">
+            Sugerido: {rejectPct}% del monto (
+            {rejectOrder
+              ? formatMoney(
+                  Math.round((rejectOrder.montoPedido * rejectPct) / 100)
+                )
+              : "—"}
+            ).
+          </p>
+          <Input
+            label="Costo flete rechazo (ARS)"
+            type="number"
+            value={rejectFee}
+            onChange={(e) => setRejectFee(e.target.value)}
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setRejectOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="danger" onClick={confirmReject}>
+              Marcar rechazado
+            </Button>
           </div>
         </div>
       </Modal>

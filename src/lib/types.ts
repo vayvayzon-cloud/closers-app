@@ -22,7 +22,15 @@ export interface Product {
   id: string;
   name: string;
   description: string;
+  /** @deprecated use precioVenta; kept in sync for compatibility */
   price: number;
+  images: string[];
+  fichaTecnica: string;
+  precioProveedor: number;
+  precioVenta: number;
+  gananciaCloser: number;
+  /** 1–10 featured rank; null = not in Top 10 */
+  topRank: number | null;
   active: boolean;
   createdAt: string;
 }
@@ -61,8 +69,17 @@ export interface Order {
   productId?: string;
   createdBy: CreatedBy;
   adminQueueStatus: AdminQueueStatus;
+  /** Freight cost charged to closer when order is rejected */
+  costoFleteRechazo: number;
   createdAt: string; // ISO timestamp with date+time
   updatedAt: string;
+}
+
+export interface AppSettings {
+  companyName: string;
+  /** Suggested % of montoPedido for rejection freight (admin can edit per order) */
+  defaultRejectionFeePercent: number;
+  notes: string;
 }
 
 export interface Session {
@@ -79,5 +96,12 @@ export interface Database {
   adSpends: AdSpend[];
   orders: Order[];
   sessions: Session[];
+  settings: AppSettings;
   seeded: boolean;
 }
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  companyName: "Closers",
+  defaultRejectionFeePercent: 10,
+  notes: "",
+};

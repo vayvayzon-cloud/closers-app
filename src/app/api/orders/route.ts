@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuid } from "uuid";
 import { getCurrentUser } from "@/lib/auth";
 import { readDb, updateDb } from "@/lib/db";
+import { normalizeOrder } from "@/lib/normalize";
 import type { OrderStatus } from "@/lib/types";
 
 const VALID: OrderStatus[] = ["pendiente", "pagado", "entregado", "rechazado"];
@@ -40,11 +41,20 @@ export async function POST(req: NextRequest) {
   const closer = db.users.find((u) => u.id === closerId && u.role === "closer");
   if (!closer) return NextResponse.json({ error: "Closer inválido" }, { status: 400 });
 
-  const assignment = db.assignments.find((a) => a.closerId === closerId);
-  const defaultGanancia = assignment?.gananciaFija ?? 0;
-  const assignedProduct = assignment
-    ? db.products.find((p) => p.id === assignment.productId)
-    : null;
+  const productId = body.productId ? String(body.productId) : undefined;
+  const assignment = productId
+    ? db.assignments.find((a) => a.closerId === closerId && a.productId === productId)
+    : db.assignments.find((a) => a.closerId === closerId);
+  const product = productId
+    ? db.products.find((p) => p.id === productId)
+    : assignment
+      ? db.products.find((p) => p.id === assignment.productId)
+      : null;
+
+  const defaultGanancia =
+    assignment?.gananciaFija ??
+    product?.gananciaCloser ??
+    0;
 
   const createdBy = user.role === "closer" ? ("closer" as const) : ("admin" as const);
   const adminQueueStatus =
@@ -52,14 +62,11 @@ export async function POST(req: NextRequest) {
 
   const producto =
     String(body.producto || "").trim() ||
-    (assignedProduct?.name || "");
-  const productId = body.productId
-    ? String(body.productId)
-    : assignment?.productId;
+    (product?.name || "");
 
   const now = new Date().toISOString();
   const estado = (VALID.includes(body.estado) ? body.estado : "pendiente") as OrderStatus;
-  const order = {
+  const order = normalizeOrder({
     id: uuid(),
     closerId,
     nombre: String(body.nombre || "").trim(),
@@ -74,12 +81,13 @@ export async function POST(req: NextRequest) {
         : defaultGanancia,
     estado,
     producto,
-    productId,
+    productId: productId || assignment?.productId || product?.id,
     createdBy,
     adminQueueStatus,
+    costoFleteRechazo: Number(body.costoFleteRechazo) || 0,
     createdAt: now,
     updatedAt: now,
-  };
+  });
   if (!order.nombre || !order.apellido) {
     return NextResponse.json({ error: "Nombre y apellido requeridos" }, { status: 400 });
   }

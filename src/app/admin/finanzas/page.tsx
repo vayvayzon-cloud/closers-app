@@ -43,7 +43,7 @@ export default function FinanzasPage() {
           Detalle por closer
         </h2>
         <p className="mb-4 text-xs text-zinc-500">
-          Liquidación = Σ ganancia de pedidos <strong>entregado</strong> − gasto ads del mes
+          Liquidación = ganancia entregados − ads − flete rechazo
         </p>
         {liq.length === 0 ? (
           <EmptyState message="Sin datos" />
@@ -57,6 +57,7 @@ export default function FinanzasPage() {
                   <th className="pb-3 font-medium">Facturación</th>
                   <th className="pb-3 font-medium">Gan. entregados</th>
                   <th className="pb-3 font-medium">Ads</th>
+                  <th className="pb-3 font-medium">Flete rechazo</th>
                   <th className="pb-3 font-medium">Liquidación</th>
                 </tr>
               </thead>
@@ -77,6 +78,7 @@ export default function FinanzasPage() {
                       {formatMoney(l.entregadosGanancia)}
                     </td>
                     <td className="py-3 text-zinc-400">{formatMoney(l.adSpend)}</td>
+                    <td className="py-3 text-red-400">{formatMoney(l.costoFleteRechazo || 0)}</td>
                     <td
                       className={`py-3 font-bold ${
                         l.liquidacion >= 0 ? "text-orange-400" : "text-red-400"

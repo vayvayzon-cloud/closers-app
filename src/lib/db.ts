@@ -20,6 +20,11 @@ function emptyDb(): Database {
     adSpends: [],
     orders: [],
     sessions: [],
+    settings: {
+      companyName: "Closers",
+      defaultRejectionFeePercent: 10,
+      notes: "",
+    },
     seeded: false,
   };
 }
